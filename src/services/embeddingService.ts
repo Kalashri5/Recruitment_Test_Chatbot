@@ -8,12 +8,12 @@ interface EmbeddingResult {
   error?: string;
 }
 
-interface CandidateEmbedding {
-  candidateId: string;
-  embedding: number[];
-  chunkText: string;
-  metadata: any;
-}
+// interface CandidateEmbedding {
+//   candidateId: string;
+//   embedding: number[];
+//   chunkText: string;
+//   metadata: any;
+// }
 
 export class EmbeddingService {
   private static readonly EMBEDDING_MODEL = 'text-embedding-3-small'; // $0.02 per 1M tokens
