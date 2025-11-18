@@ -1,3 +1,5 @@
+/* =========== COMPLETE RecruitmentChatbot.css FILE =========== */
+
 .chatbot-container {
   display: flex;
   flex-direction: column;
@@ -372,4 +374,65 @@
 .suggestions-container::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 4px;
+}
+
+
+/* ======================================================= */
+/*  NEW STYLES FOR STUNNING & USER-FRIENDLY QUICK REPLIES  */
+/* ======================================================= */
+
+.quick-replies-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 8px 16px 16px 16px;
+  border-top: 1px solid #e5e7eb;
+  background-color: #f9fafb;
+}
+
+.quick-reply-btn {
+  /* Sizing and Layout */
+  flex-grow: 1;
+  padding: 12px 18px;
+  
+  /* Color and Background */
+  color: white;
+  background: linear-gradient(to top, #4f46e5, #6366f1);
+  
+  /* Shape and Border */
+  border: none;
+  border-radius: 12px;
+  border-bottom: 3px solid #4338ca;
+
+  /* Text */
+  text-align: center;
+  font-size: 14px;
+  font-weight: 500;
+  
+  /* Effects */
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(79, 70, 229, 0.2);
+  transition: all 0.15s ease-out;
+}
+
+/* --- INTERACTIVE STATES --- */
+
+.quick-reply-btn:hover {
+  background: linear-gradient(to top, #6366f1, #818cf8);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(79, 70, 229, 0.3);
+}
+
+.quick-reply-btn:active {
+  transform: translateY(1px);
+  border-bottom: 2px solid #4338ca;
+  box-shadow: 0 2px 5px rgba(79, 70, 229, 0.2);
+}
+
+.quick-reply-btn:disabled {
+  background: #a5b4fc;
+  cursor: not-allowed;
+  transform: translateY(0);
+  box-shadow: none;
+  border-bottom: 3px solid #6366f1;
 }

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Loader2, Sparkles, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
-import { ChatService } from '../services/chatService';
+// V-- IMPORT THE NEW RESPONSE TYPE
+import { ChatService, ChatResponse } from '../services/chatService';
 import { Message } from '../types';
 import './RecruitmentChatbot.css';
 
@@ -11,11 +12,9 @@ interface RecruitmentChatbotProps {
 
 const SUGGESTED_QUESTIONS = [
   "How many total jobs are posted?",
-  "How many total candidates have applied?",
+  "Show me all active job openings",
   "Top 10 candidates by score",
   "Find candidate: harshavardhan.6962@gmail.com",
-  "Search phone: 9700226962",
-  "Show me Dialogflow CX Developer candidates",
   "List all clients",
   "Candidates scoring above 80",
   "Show candidates expecting salary below ₹20L",
@@ -25,19 +24,22 @@ const SUGGESTED_QUESTIONS = [
   "Show PWC client details",
   "Who's in screening status?",
   "What are the job statuses available?",
+  "Show all job openings in Bangalore",
+  "Candidates with more than 5 years experience",
 ];
 
 export const RecruitmentChatbot: React.FC<RecruitmentChatbotProps> = ({ jobId, jobTitle }) => {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      content: `Hi! 👋 I'm your recruitment assistant for **${jobTitle}**.\n\nI can help you:\n• Search candidates by email or phone\n• Analyze candidate data and scores\n• Check statistics and metrics\n• Find specific jobs or clients\n• Filter by location, salary, or skills\n\nTry one of the suggested questions below or ask me anything!`,
+      content: `Hi! 👋 I'm your AI recruitment assistant for **${jobTitle}**.\n\nI can help you with:\n• **Job queries** - Status, openings, details\n• **Candidate search** - By name, email, phone, skills, experience\n• **Client information** - Details, contacts, projects\n• **Pipeline tracking** - Status updates, timeline\n• **Analytics & Reports** - Insights, metrics, trends\n• **Resume analysis** - Skill matching, scoring\n\nTry asking me anything - I have access to all your recruitment data!`,
       timestamp: new Date(),
     },
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(true);
+  const [quickReplies, setQuickReplies] = useState<string[]>([]); // <-- ADDED THIS NEW STATE
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -48,52 +50,73 @@ export const RecruitmentChatbot: React.FC<RecruitmentChatbotProps> = ({ jobId, j
     scrollToBottom();
   }, [messages]);
 
-const handleSend = async (messageText?: string) => {
-  const textToSend = messageText || input;
-  if (!textToSend.trim() || loading) return;
+  const handleSend = async (messageText?: string) => {
+    const textToSend = messageText || input;
+    if (!textToSend.trim() || loading) return;
 
-  const userMessage: Message = {
-    role: 'user',
-    content: textToSend,
-    timestamp: new Date(),
+    const userMessage: Message = {
+      role: 'user',
+      content: textToSend,
+      timestamp: new Date(),
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
+    setInput('');
+    setLoading(true);
+    setShowSuggestions(false);
+    setQuickReplies([]); // <-- ADDED: Clear old replies when sending a new message
+
+    try {
+      const conversationHistory = messages.map(msg => ({
+        role: msg.role,
+        content: msg.content
+      }));
+
+      // V-- THIS ENTIRE BLOCK HAS BEEN MODIFIED TO HANDLE THE NEW RESPONSE TYPE --V
+      const response: ChatResponse = await ChatService.sendMessage(textToSend, jobId, conversationHistory);
+
+      let messageContent: string;
+      let newQuickReplies: string[] = [];
+
+      // Check if the response is an object with suggestions
+      if (typeof response === 'object' && 'suggestions' in response) {
+        messageContent = response.text;
+        newQuickReplies = response.suggestions;
+      } else {
+        // Otherwise, it's just a regular string
+        messageContent = response;
+      }
+
+      const assistantMessage: Message = {
+        role: 'assistant',
+        content: messageContent, // This is now guaranteed to be a string
+        timestamp: new Date(),
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
+      setQuickReplies(newQuickReplies); // Set the new quick replies
+      // ^-- END OF MODIFIED BLOCK --^
+
+    } catch (error: any) {
+      console.error('Chat error:', error);
+      const errorMessage: Message = {
+        role: 'assistant',
+        content: `Sorry, I encountered an error: ${error.message}. Please check your API keys and database connection.`,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setLoading(false);
+    }
   };
-
-  setMessages((prev) => [...prev, userMessage]);
-  setInput('');
-  setLoading(true);
-  setShowSuggestions(false);
-
-  try {
-    // 🔥 NEW: Send conversation history
-    const conversationHistory = messages.map(msg => ({
-      role: msg.role,
-      content: msg.content
-    }));
-    
-    const response = await ChatService.sendMessage(textToSend, jobId, conversationHistory);
-
-    const assistantMessage: Message = {
-      role: 'assistant',
-      content: response,
-      timestamp: new Date(),
-    };
-
-    setMessages((prev) => [...prev, assistantMessage]);
-  } catch (error: any) {
-    console.error('Chat error:', error);
-    const errorMessage: Message = {
-      role: 'assistant',
-      content: `Sorry, I encountered an error: ${error.message}. Please check your API keys and try again.`,
-      timestamp: new Date(),
-    };
-    setMessages((prev) => [...prev, errorMessage]);
-  } finally {
-    setLoading(false);
-  }
-};
 
   const handleSuggestedQuestion = (question: string) => {
     handleSend(question);
+  };
+
+  // <-- ADDED THIS ENTIRE NEW HANDLER FUNCTION FOR QUICK REPLIES -->
+  const handleQuickReplyClick = (replyText: string) => {
+    handleSend(replyText);
   };
 
   const handleClearChat = () => {
@@ -101,11 +124,12 @@ const handleSend = async (messageText?: string) => {
       setMessages([
         {
           role: 'assistant',
-          content: `Hi! 👋 I'm your recruitment assistant for **${jobTitle}**.\n\nI can help you:\n• Search candidates by email or phone\n• Analyze candidate data and scores\n• Check statistics and metrics\n• Find specific jobs or clients\n• Filter by location, salary, or skills\n\nTry one of the suggested questions below or ask me anything!`,
+          content: `Hi! 👋 I'm your AI recruitment assistant for **${jobTitle}**.\n\nI can help you with:\n• **Job queries** - Status, openings, details\n• **Candidate search** - By name, email, phone, skills, experience\n• **Client information** - Details, contacts, projects\n• **Pipeline tracking** - Status updates, timeline\n• **Analytics & Reports** - Insights, metrics, trends\n• **Resume analysis** - Skill matching, scoring\n\nTry asking me anything - I have access to all your recruitment data!`,
           timestamp: new Date(),
         },
       ]);
       setShowSuggestions(true);
+      setQuickReplies([]); // <-- ADDED: Clear replies on reset
       ChatService.clearCache();
     }
   };
@@ -211,6 +235,22 @@ const handleSend = async (messageText?: string) => {
         <div ref={messagesEndRef} />
       </div>
 
+      {/* V-- ADDED THIS ENTIRE NEW JSX BLOCK FOR QUICK REPLIES --V */}
+      {quickReplies.length > 0 && !loading && (
+        <div className="quick-replies-container">
+          {quickReplies.map((reply, index) => (
+            <button
+              key={index}
+              className="quick-reply-btn"
+              onClick={() => handleQuickReplyClick(reply)}
+            >
+              {reply}
+            </button>
+          ))}
+        </div>
+      )}
+      {/* ^-- END OF NEW JSX BLOCK --^ */}
+
       <div className="input-container">
         <div className="input-wrapper">
           <input
@@ -218,7 +258,7 @@ const handleSend = async (messageText?: string) => {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
-            placeholder="Ask about candidates, skills, experience, statistics..."
+            placeholder="Ask about jobs, candidates, clients, skills, experience, analytics..."
             className="chat-input"
             disabled={loading}
           />
